@@ -5,11 +5,12 @@ namespace CarAuctionManagementSystem.Repositories
 {
     public interface IVehicleRepository
     {
-        Vehicle GetById(Guid id);
-        Vehicle AddVehicle(Vehicle vehicle);
-        IEnumerable<Vehicle> GetAllVehicles();
-        IEnumerable<Vehicle> SearchVehicles(VehicleSearchParams searchParams);
-        Vehicle Update(Vehicle vehicle);
-        void Delete(Guid id);
+        Task DeleteAsync(Guid id);
+        Task<Vehicle> UpdateAsync(Vehicle vehicle);
+        Task<Vehicle?> GetByIdAsync(Guid id);
+        Task<Vehicle> AddVehicleAsync(Vehicle vehicle);
+        Task<IEnumerable<Vehicle>> SearchVehiclesAsync(VehicleSearchParams searchParams);
+        Task<IEnumerable<Vehicle>> GetAllVehiclesAsync();
+
     }
 }

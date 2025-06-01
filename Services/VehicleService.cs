@@ -3,6 +3,7 @@ using CarAuctionManagement.Models.Vehicles;
 using CarAuctionManagementSystem.Models.DTOs.Requests;
 using CarAuctionManagementSystem.Models.DTOs.Responses;
 using CarAuctionManagementSystem.Repositories;
+using CarAuctionManagementSystem.Repositories.Auctions;
 using CarAuctionManagementSystem.Services.Interfaces;
 using static CarAuctionManagementSystem.Exceptions.CustomExceptions;
 
@@ -10,31 +11,39 @@ namespace CarAuctionManagementSystem.Services
 {
     public class VehicleService : IVehicleService
     {
-        private readonly IVehicleRepository _repository;
+        private readonly IVehicleRepository _vehicleRepository;
+        private readonly IAuctionRepository _auctionRepository;
 
-        public VehicleService(IVehicleRepository repository)
+        public VehicleService(IVehicleRepository repository, IAuctionRepository auctionRepository)
         {
-            _repository = repository;
+            _vehicleRepository = repository;
+            _auctionRepository = auctionRepository;
         }
 
-        public async Task DeleteVehicle(Guid id)
+        public async Task DeleteVehicleAsync(Guid id)
         {
-            var vehicle = _repository.GetById(id) ?? throw new VehicleNotFoundException(id);
+            var vehicle = _vehicleRepository.GetByIdAsync(id) ?? throw new VehicleNotFoundException(id);
 
-            _repository.Delete(id);
+            if (await _auctionRepository.ExistsForVehicleAsync(id))
+                throw new VehicleHaveActiveAuctionException(id);
+
+            await _vehicleRepository.DeleteAsync(id);
         }
 
-        public async Task<VehicleResponse?> UpdateVehicle(UpdateVehicleRequest? request)
+        public async Task<VehicleResponse?> UpdateVehicleAsync(UpdateVehicleRequest? request)
         {
-            var vehicle = _repository.GetById(request.Id);
-            if (vehicle == null)
-                return null;
+            var vehicle = await _vehicleRepository.GetByIdAsync(request!.Id) ?? throw new VehicleNotFoundException(request.Id);
+
+            if (await _auctionRepository.ExistsForVehicleAsync(request.Id))
+                throw new VehicleHaveActiveAuctionException(request.Id);
+
+            if (vehicle.Type != request.Type)
+                throw new CannotUpdateVehicleType();
 
             vehicle.Manufacturer = request.Manufacturer ?? vehicle.Manufacturer;
             vehicle.Model = request.Model ?? vehicle.Model;
             vehicle.Year = request.Year ?? vehicle.Year;
             vehicle.StartingBid = request.StartingBid ?? vehicle.StartingBid;
-            vehicle.CurrentBid = request.CurrentBid;
 
             // Specifics
             if (vehicle is Sedan sedan && request.NumberOfDoors.HasValue)
@@ -49,7 +58,7 @@ namespace CarAuctionManagementSystem.Services
             if (vehicle is Truck truck && request.LoadCapacity.HasValue)
                 truck.LoadCapacity = request.LoadCapacity.Value;
 
-            var update = _repository.Update(vehicle);
+            var update = await _vehicleRepository.UpdateAsync(vehicle);
 
             var response = new VehicleResponse
             {
@@ -58,8 +67,6 @@ namespace CarAuctionManagementSystem.Services
                 Model = update.Model,
                 Year = update.Year,
                 StartingBid = update.StartingBid,
-                CurrentBid = update.CurrentBid,
-                IsAuctionActive = update.IsAuctionActive,
                 Type = update.Type,
                 NumberOfDoors = (update is Sedan s) ? s.NumberOfDoors : (update is Hatchback h) ? h.NumberOfDoors : null,
                 NumberOfSeats = (update is SUV s2) ? s2.NumberOfSeats : null,
@@ -69,72 +76,56 @@ namespace CarAuctionManagementSystem.Services
             return response;
         }
 
-        public async Task<Vehicle?> GetVehicleById(Guid id)
+        public async Task<Vehicle?> GetVehicleByIdAsync(Guid id)
         {
-            try
-            {
+            var vehicle = await _vehicleRepository.GetByIdAsync(id);
+            if (vehicle == null)
+                throw new NoVehiclesFoundException();
 
-                var vehicle = _repository.GetById(id);
-                if (vehicle == null)
-                    throw new NoVehiclesFoundException();
-
-                return vehicle;
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            return vehicle;
         }
 
-        public async Task<Vehicle> AddVehicle(AddVehicleRequest? request)
+        public async Task<Vehicle> AddVehicleAsync(AddVehicleRequest request)
         {
 
             switch (request.Type)
             {
                 case VehicleType.Hatchback:
                     var hatchback = CreateHatchback(request);
-                    var vehicleHatchback = _repository.AddVehicle(hatchback);
+                    var vehicleHatchback = await _vehicleRepository.AddVehicleAsync(hatchback);
                     return vehicleHatchback;
 
                 case VehicleType.Sedan:
                     Sedan sedan = CreateSedan(request);
-                    var vehicleSedan = _repository.AddVehicle(sedan);
+                    var vehicleSedan = await _vehicleRepository.AddVehicleAsync(sedan);
                     return vehicleSedan;
 
                 case VehicleType.SUV:
                     var suv = CreateSuv(request);
-                    var vehicleSUV = _repository.AddVehicle(suv);
+                    var vehicleSUV = await _vehicleRepository.AddVehicleAsync(suv);
                     return vehicleSUV;
 
                 case VehicleType.Truck:
                     var truck = CreateTruck(request);
-                    var vehicleTruck = _repository.AddVehicle(truck);
+                    var vehicleTruck = await _vehicleRepository.AddVehicleAsync(truck);
                     return vehicleTruck;
 
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(request.Type), "Unsupported vehicle type");
+                    throw new InvalidVehicleTypeException();
             }
         }
-        public async Task<IEnumerable<Vehicle>> SearchVehicles(VehicleSearchParams searchParams)
+        public async Task<IEnumerable<Vehicle>> SearchVehiclesAsync(VehicleSearchParams searchParams)
         {
-            try
-            {
-                return _repository.SearchVehicles(searchParams);
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            return await _vehicleRepository.SearchVehiclesAsync(searchParams);
         }
 
         private static Truck CreateTruck(AddVehicleRequest vehicleRequest)
         {
             Truck truck = new Truck(
-                vehicleRequest.Manufacturer,
-                vehicleRequest.Model,
+                vehicleRequest.Manufacturer!,
+                vehicleRequest.Model!,
                 vehicleRequest.Year,
                 vehicleRequest.StartingBid,
-                vehicleRequest.CurrentBid,
                 vehicleRequest.LoadCapacity ?? 0
             );
             return truck;
@@ -143,11 +134,10 @@ namespace CarAuctionManagementSystem.Services
         private static SUV CreateSuv(AddVehicleRequest vehicleRequest)
         {
             SUV suv = new SUV(
-                vehicleRequest.Manufacturer,
-                vehicleRequest.Model,
+                vehicleRequest.Manufacturer!,
+                vehicleRequest.Model!,
                 vehicleRequest.Year,
                 vehicleRequest.StartingBid,
-                vehicleRequest.CurrentBid,
                 vehicleRequest.NumberOfSeats ?? 0
             );
             return suv;
@@ -156,11 +146,10 @@ namespace CarAuctionManagementSystem.Services
         private static Sedan CreateSedan(AddVehicleRequest vehicleRequest)
         {
             Sedan sedan = new Sedan(
-                vehicleRequest.Manufacturer,
-                vehicleRequest.Model,
+                vehicleRequest.Manufacturer!,
+                vehicleRequest.Model!,
                 vehicleRequest.Year,
                 vehicleRequest.StartingBid,
-                vehicleRequest.CurrentBid,
                 vehicleRequest.NumberOfDoors ?? 0
             );
             return sedan;
@@ -169,19 +158,13 @@ namespace CarAuctionManagementSystem.Services
         private static Hatchback CreateHatchback(AddVehicleRequest vehicleRequest)
         {
             Hatchback hatchback = new Hatchback(
-                vehicleRequest.Manufacturer,
-                vehicleRequest.Model,
+                vehicleRequest.Manufacturer!,
+                vehicleRequest.Model!,
                 vehicleRequest.Year,
                 vehicleRequest.StartingBid,
-                vehicleRequest.CurrentBid,
                 vehicleRequest.NumberOfDoors ?? 0
             );
             return hatchback;
         }
-        //private void GetVehiclesValidation(List<Vehicle?>? vehicles)
-        //{
-        //    if (vehicles?.Count == 0)
-        //        throw new CustomExceptions.NoVehiclesFoundException();
-        //}
     }
 }

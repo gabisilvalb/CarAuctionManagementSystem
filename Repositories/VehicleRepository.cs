@@ -1,81 +1,71 @@
 ﻿using CarAuctionManagement.Models.Vehicles;
 using CarAuctionManagementSystem.Models.DTOs.Requests;
+using CarAuctionManagementSystem.Repositories;
 using static CarAuctionManagementSystem.Exceptions.CustomExceptions;
 
-namespace CarAuctionManagementSystem.Repositories
+public class VehicleRepository : IVehicleRepository
 {
-    public class VehicleRepository : IVehicleRepository
+    private readonly List<Vehicle> _vehicles = new();
+
+    public Task DeleteAsync(Guid id)
     {
-        private readonly List<Vehicle> _vehicles = new();
+        var index = _vehicles.FindIndex(v => v.Id == id);
 
-        public void Delete(Guid id)
-        {
-            {
-                var index = _vehicles.FindIndex(v => v.Id == id);
+        if (index == -1)
+            throw new VehicleNotFoundException(id);
 
-                if (index == -1)
-                    throw new VehicleNotFoundException(id);
+        _vehicles.RemoveAt(index);
+        return Task.CompletedTask;
+    }
 
-                _vehicles.RemoveAt(index);
-            }
-        }
+    public Task<Vehicle> UpdateAsync(Vehicle vehicle)
+    {
+        var index = _vehicles.FindIndex(v => v.Id == vehicle.Id);
 
-        public Vehicle Update(Vehicle vehicle)
-        {
-            var index = _vehicles.FindIndex(v => v.Id == vehicle.Id);
+        if (index == -1)
+            throw new VehicleNotFoundException(vehicle.Id);
 
-            if (index == -1)
-                throw new VehicleNotFoundException(vehicle.Id);
+        _vehicles[index] = vehicle;
 
-            _vehicles[index] = vehicle;
+        return Task.FromResult(vehicle);
+    }
 
-            return vehicle;
-        }
+    public Task<Vehicle?> GetByIdAsync(Guid id)
+    {
+        var vehicle = _vehicles.FirstOrDefault(v => v.Id == id);
+        return Task.FromResult(vehicle);
+    }
 
-        public Vehicle GetById(Guid id)
-        {
-            return _vehicles.FirstOrDefault(v => v.Id == id);
-        }
+    public Task<Vehicle> AddVehicleAsync(Vehicle vehicle)
+    {
+        _vehicles.Add(vehicle);
+        return Task.FromResult(vehicle);
+    }
 
-        public Vehicle AddVehicle(Vehicle vehicle)
-        {
+    public Task<IEnumerable<Vehicle>> SearchVehiclesAsync(VehicleSearchParams searchParams)
+    {
+        var query = _vehicles.AsQueryable();
 
-            _vehicles.Add(vehicle);
+        if (!string.IsNullOrWhiteSpace(searchParams.Manufacturer))
+            query = query.Where(v => v.Manufacturer!.Contains(searchParams.Manufacturer, StringComparison.OrdinalIgnoreCase));
 
-            return vehicle;
-        }
+        if (!string.IsNullOrWhiteSpace(searchParams.Model))
+            query = query.Where(v => v.Model!.Contains(searchParams.Model, StringComparison.OrdinalIgnoreCase));
 
-        public IEnumerable<Vehicle> SearchVehicles(VehicleSearchParams searchParams)
-        {
-            var query = _vehicles.AsQueryable();
+        if (searchParams.Type.HasValue)
+            query = query.Where(v => v.Type == searchParams.Type.Value);
 
-            if (!string.IsNullOrWhiteSpace(searchParams.Manufacturer))
-                query = query.Where(v => v.Manufacturer.Contains(searchParams.Manufacturer, StringComparison.OrdinalIgnoreCase));
+        if (searchParams.Year.HasValue)
+            query = query.Where(v => v.Year.Equals(searchParams.Year.Value));
 
-            if (!string.IsNullOrWhiteSpace(searchParams.Model))
-                query = query.Where(v => v.Model.Contains(searchParams.Model, StringComparison.OrdinalIgnoreCase));
+        if (searchParams.StartingBid.HasValue)
+            query = query.Where(v => v.StartingBid.Equals(searchParams.StartingBid.Value));
 
-            if (searchParams.Type.HasValue)
-                query = query.Where(v => v.Type == searchParams.Type.Value);
+        return Task.FromResult(query.AsEnumerable());
+    }
 
-            if (searchParams.Year.HasValue)
-                query = query.Where(v => v.Year.Equals(searchParams.Year.Value));
-
-            if (searchParams.StartingBid.HasValue)
-                query = query.Where(v => v.StartingBid.Equals(searchParams.StartingBid.Value));
-
-            return query.ToList();
-        }
-
-        //public Vehicle? GetById(string id)
-        //{
-        //    _vehicles.TryGetValue(id, out var vehicle);
-        //    return vehicle;
-        //}
-
-        //public IEnumerable<Vehicle> Search(Func<Vehicle, bool> predicate)
-        //    => _vehicles.Values.Where(predicate);
-
-        public IEnumerable<Vehicle> GetAllVehicles() => _vehicles;
+    public Task<IEnumerable<Vehicle>> GetAllVehiclesAsync()
+    {
+        return Task.FromResult(_vehicles.AsEnumerable());
     }
 }

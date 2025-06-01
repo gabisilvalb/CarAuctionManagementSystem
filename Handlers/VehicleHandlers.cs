@@ -13,11 +13,11 @@ namespace CarAuctionManagementSystem.Handlers
         public static async Task<IResult> DeleteVehicle(Guid id, IVehicleService vehicleService)
         {
 
-            await vehicleService.DeleteVehicle(id);
+            await vehicleService.DeleteVehicleAsync(id);
             return Results.NoContent();
         }
 
-        public static async Task<IResult> UpdateVehicle(UpdateVehicleRequest request, IVehicleService vehicleService,
+        public static async Task<IResult> UpdateVehicle([FromBody] UpdateVehicleRequest request, IVehicleService vehicleService,
                 IValidator<UpdateVehicleRequest> validator)
         {
             var validationResult = await validator.ValidateAsync(request);
@@ -26,65 +26,50 @@ namespace CarAuctionManagementSystem.Handlers
                 return Results.ValidationProblem(validationResult.ToDictionary());
             }
 
-            var updated = vehicleService.UpdateVehicle(request);
-            if (updated == null)
-                return Results.NotFound(new { error = $"Vehicle with ID '{request.Id}' not found." });
+            var result = vehicleService.UpdateVehicleAsync(request);
 
-            return Results.Ok(updated);
+            return Results.Ok(new { result });
         }
 
         public static async Task<IResult> GetVehicleById(Guid id, IVehicleService vehicleService)
         {
-            try
-            {
-                var vehicle = await vehicleService.GetVehicleById(id);
-                if (vehicle is null)
-                    return Results.NotFound(new { error = $"Vehicle with ID '{id}' not found." });
+            var vehicle = await vehicleService.GetVehicleByIdAsync(id);
 
-                var response = new VehicleResponse
-                {
-                    Id = vehicle.Id,
-                    Manufacturer = vehicle.Manufacturer,
-                    Model = vehicle.Model,
-                    Year = vehicle.Year,
-                    StartingBid = vehicle.StartingBid,
-                    CurrentBid = vehicle.CurrentBid,
-                    IsAuctionActive = vehicle.IsAuctionActive,
-                    Type = vehicle.Type,
-                    NumberOfDoors = (vehicle is Sedan s1) ? s1.NumberOfDoors : (vehicle is Hatchback h) ? h.NumberOfDoors : null,
-                    NumberOfSeats = (vehicle is SUV s2) ? s2.NumberOfSeats : null,
-                    LoadCapacity = (vehicle is Truck t) ? t.LoadCapacity : null
-                };
-
-                return Results.Ok(response);
-            }
-            catch (Exception ex)
+            var result = new VehicleResponse
             {
-                return Results.Problem("An unexpected error occurred: " + ex.Message);
-            }
+                Id = vehicle!.Id,
+                Manufacturer = vehicle.Manufacturer,
+                Model = vehicle.Model,
+                Year = vehicle.Year,
+                StartingBid = vehicle.StartingBid,
+                Type = vehicle.Type,
+                NumberOfDoors = (vehicle is Sedan s1) ? s1.NumberOfDoors : (vehicle is Hatchback h) ? h.NumberOfDoors : null,
+                NumberOfSeats = (vehicle is SUV s2) ? s2.NumberOfSeats : null,
+                LoadCapacity = (vehicle is Truck t) ? t.LoadCapacity : null
+            };
+
+            return Results.Ok(new { result });
         }
         public static async Task<IResult> SearchVehicles(
                 [AsParameters] VehicleSearchParams searchParams,
                 IVehicleService vehicleService)
         {
-            var vehicles = await vehicleService.SearchVehicles(searchParams);
+            var vehicles = await vehicleService.SearchVehiclesAsync(searchParams);
 
-            var response = vehicles.Select(v => new VehicleResponse
+            var result = vehicles.Select(v => new VehicleResponse
             {
                 Id = v.Id,
                 Manufacturer = v.Manufacturer,
                 Model = v.Model,
                 Year = v.Year,
                 StartingBid = v.StartingBid,
-                IsAuctionActive = v.IsAuctionActive,
-                CurrentBid = v.CurrentBid,
                 Type = v.Type,
                 NumberOfDoors = (v is Sedan s1) ? s1.NumberOfDoors : (v is Hatchback h) ? h.NumberOfDoors : null,
                 NumberOfSeats = (v is SUV s2) ? s2.NumberOfSeats : null,
                 LoadCapacity = (v is Truck t) ? t.LoadCapacity : null
             });
 
-            return Results.Ok(response);
+            return Results.Ok(new { result });
         }
 
         public static async Task<IResult> AddVehicle([FromBody] AddVehicleRequest vehicleRequest,
@@ -96,7 +81,7 @@ namespace CarAuctionManagementSystem.Handlers
             {
                 return Results.ValidationProblem(validationResult.ToDictionary());
             }
-            var vehicle = await vehicleService.AddVehicle(vehicleRequest);
+            var vehicle = await vehicleService.AddVehicleAsync(vehicleRequest);
             return Results.Created($"/vehicles/{vehicle.Id}", new { id = vehicle.Id });
         }
 

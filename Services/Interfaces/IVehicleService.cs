@@ -6,10 +6,10 @@ namespace CarAuctionManagementSystem.Services.Interfaces
 {
     public interface IVehicleService
     {
-        Task<Vehicle> AddVehicle(AddVehicleRequest? request);
-        Task<Vehicle?> GetVehicleById(Guid id);
-        Task<IEnumerable<Vehicle>> SearchVehicles(VehicleSearchParams searchParams);
-        Task<VehicleResponse?> UpdateVehicle(UpdateVehicleRequest request);
-        Task DeleteVehicle(Guid Id);
+        Task<Vehicle> AddVehicleAsync(AddVehicleRequest request);
+        Task<Vehicle?> GetVehicleByIdAsync(Guid id);
+        Task<IEnumerable<Vehicle>> SearchVehiclesAsync(VehicleSearchParams searchParams);
+        Task<VehicleResponse?> UpdateVehicleAsync(UpdateVehicleRequest request);
+        Task DeleteVehicleAsync(Guid Id);
     }
 }

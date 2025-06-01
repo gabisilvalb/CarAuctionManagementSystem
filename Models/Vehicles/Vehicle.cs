@@ -9,19 +9,15 @@ namespace CarAuctionManagement.Models.Vehicles
         public string? Model { get; set; }
         public int? Year { get; set; }
         public decimal? StartingBid { get; set; }
-        public decimal? CurrentBid { get; set; }
         public VehicleType? Type { get; set; }
-        public bool IsAuctionActive { get; set; }
 
-        protected Vehicle(string manufacturer, string model, int year, decimal startingBid, decimal currentBid, VehicleType type)
+        protected Vehicle(string manufacturer, string model, int year, decimal startingBid, VehicleType type)
         {
             Manufacturer = manufacturer;
             Model = model;
             Year = year;
             StartingBid = startingBid;
-            CurrentBid = currentBid;
             Type = type;
-            IsAuctionActive = false;
         }
 
 

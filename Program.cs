@@ -4,6 +4,7 @@ using CarAuctionManagementSystem.Handlers;
 using CarAuctionManagementSystem.Models.DTOs.Responses;
 using CarAuctionManagementSystem.Repositories;
 using CarAuctionManagementSystem.Repositories.Auctions;
+using CarAuctionManagementSystem.Repositories.Bidders;
 using CarAuctionManagementSystem.Services;
 using CarAuctionManagementSystem.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
@@ -27,6 +28,8 @@ builder.Services.AddSingleton<IVehicleService, VehicleService>();
 builder.Services.AddSingleton<IVehicleRepository, VehicleRepository>();
 builder.Services.AddSingleton<IAuctionRepository, AuctionRepository>();
 builder.Services.AddSingleton<IAuctionService, AuctionService>();
+builder.Services.AddSingleton<IBidderService, BidderService>();
+builder.Services.AddSingleton<IBidderRepository, BidderRepository>();
 
 builder.Services.AddValidators();
 
@@ -36,8 +39,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Car Auction API v1"));
 
 
-//app.UseMiddleware<ValidationExceptionMiddleware>();
-
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
@@ -85,11 +87,55 @@ app.MapGet("/auctions/onGoing", AuctionHandler.GetAllOnGoingAuctions)
     .WithName("GetOnGoingAuctions")
     .Produces<GetAllOnGoingAuctionsResponse>();
 
+app.MapGet("/auctions/{id:Guid}", AuctionHandler.GetAuctionById)
+    .WithName("GetAuction")
+    .ProducesProblem(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status404NotFound);
+
+app.MapGet("/auctions/closed", AuctionHandler.GetAllClosedAuctions)
+    .WithName("GetClosedAuctions")
+    .Produces<GetAllClosedAuctionsResponse>();
+
 app.MapPost("/auctions/bid", AuctionHandler.PlaceBid)
     .WithName("PlaceBid")
     .Produces<PlaceBidResponse>()
     .ProducesProblem(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status404NotFound);
+
+app.MapPost("/auctions/close", AuctionHandler.CloseAuction)
+    .WithName("CloseAuction")
+    .Produces<CloseAuctionResponse>()
+    .ProducesProblem(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status404NotFound);
+
+app.MapGet("/auctions/{id:Guid}/bids", AuctionHandler.GetAuctionBids)
+    .WithName("GetAuctionBids")
+    .Produces<AuctionBidsResponse>()
+    .ProducesProblem(StatusCodes.Status404NotFound);
+
+// Bidders endpoints
+app.MapPost("/bidders", BidderHandler.CreateBidder)
+    .WithName("CreateBidder")
+    .Produces<CreateBidderResponse>(StatusCodes.Status201Created)
+    .ProducesProblem(StatusCodes.Status400BadRequest);
+
+app.MapDelete("/bidders/{id:Guid}", BidderHandler.DeleteBidder)
+    .WithName("DeleteBidder")
+    .Produces(StatusCodes.Status204NoContent)
+    .ProducesProblem(StatusCodes.Status404NotFound);
+
+app.MapGet("/bidders/{id:Guid}/auctions", BidderHandler.GetAuctionsByBidder)
+    .WithName("GetBidderAuctions")
+    .Produces<BidderAuctionsResponse>()
+    .ProducesProblem(StatusCodes.Status404NotFound);
+
+app.MapGet("/bidders/{id:Guid}", BidderHandler.GetBidderById)
+    .WithName("GetBidderById")
+    .Produces<BidderDetailsResponse>()
+    .ProducesProblem(StatusCodes.Status404NotFound);
+
+
+
 
 
 app.Run();

@@ -14,6 +14,8 @@ namespace CarAuctionManagementSystem.Extensions
             services.AddValidatorsFromAssemblyContaining<AddAuctionRequest>();
             services.AddValidatorsFromAssemblyContaining<AddVehiclesToAuctionRequestValidator>();
             services.AddValidatorsFromAssemblyContaining<PlaceBidRequestValidator>();
+            services.AddValidatorsFromAssemblyContaining<CloseAuctionRequestValidator>();
+            services.AddValidatorsFromAssemblyContaining<CreateBidderRequest>();
 
             return services;
         }

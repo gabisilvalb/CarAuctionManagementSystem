@@ -3,16 +3,16 @@
     public class Bid
     {
         public Guid? Id { get; }
-        public Guid? BidderId { get; }
-        public Guid? AuctionId { get; }
+        public Guid AuctionId { get; }
         public decimal? Amount { get; }
+        public Bidder.Bidder Bidder { get; }
 
-        public Bid(Guid? id, Guid? bidderId, Guid? auctionId, decimal? amount)
+        public Bid(Guid? id, Guid auctionId, decimal? amount, Bidder.Bidder bidder)
         {
             Id = id;
-            BidderId = bidderId;
             AuctionId = auctionId;
             Amount = amount;
+            Bidder = bidder;
         }
     }
 }

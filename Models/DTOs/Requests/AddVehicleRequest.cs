@@ -5,11 +5,10 @@ namespace CarAuctionManagementSystem.Models.DTOs.Requests
 {
     public class AddVehicleRequest
     {
-        public string Manufacturer { get; set; }
-        public string Model { get; set; }
+        public string? Manufacturer { get; set; }
+        public string? Model { get; set; }
         public int Year { get; set; }
         public decimal StartingBid { get; set; }
-        public decimal CurrentBid { get; set; }
         public VehicleType? Type { get; set; }
 
         // Optional depending on type
@@ -39,6 +38,7 @@ namespace CarAuctionManagementSystem.Models.DTOs.Requests
             {
                 RuleFor(x => x.NumberOfSeats)
                     .NotNull()
+                    .GreaterThan(0)
                     .When(x => x.NumberOfSeats.HasValue)
                     .WithMessage("Number of seats must be provided for SUVs.");
 
@@ -53,22 +53,23 @@ namespace CarAuctionManagementSystem.Models.DTOs.Requests
                     .WithMessage("Number of doors is not applicable for SUVs.");
             });
 
-            When(x => x.Type.HasValue && x.Type == VehicleType.Sedan, () =>
+            When(x => x.Type.HasValue && (x.Type == VehicleType.Sedan || x.Type == VehicleType.Hatchback), () =>
             {
                 RuleFor(x => x.NumberOfDoors)
                     .NotNull()
+                    .GreaterThan(0)
                     .When(x => x.NumberOfDoors.HasValue)
-                    .WithMessage("Number of doors must be provided for sedans.");
+                    .WithMessage("Number of doors must be provided for sedans and hatchbacks.");
 
                 RuleFor(x => x.LoadCapacity)
                     .Must(value => value == null || value == 0)
                     .When(x => x.LoadCapacity.HasValue)
-                    .WithMessage("Load capacity is not applicable for sedans.");
+                    .WithMessage("Load capacity is not applicable for sedans and hatchbacks.");
 
                 RuleFor(x => x.NumberOfSeats)
                     .Must(value => value == null || value == 0)
                     .When(x => x.NumberOfSeats.HasValue)
-                    .WithMessage("Number of seats is not applicable for sedans.");
+                    .WithMessage("Number of seats is not applicable for sedans and hatchbacks.");
             });
 
             When(x => x.Type.HasValue && x.Type == VehicleType.Truck, () =>

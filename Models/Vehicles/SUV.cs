@@ -6,8 +6,8 @@ namespace CarAuctionManagement.Models.Vehicles
     {
         public int? NumberOfSeats { get; set; }
 
-        public SUV(string manufacturer, string model, int year, decimal startingBid, decimal currentBid, int numberOfSeats)
-            : base(manufacturer, model, year, startingBid, currentBid, VehicleType.Truck)
+        public SUV(string manufacturer, string model, int year, decimal startingBid, int numberOfSeats)
+            : base(manufacturer, model, year, startingBid, VehicleType.SUV)
         {
             NumberOfSeats = numberOfSeats;
         }
